@@ -1,0 +1,6 @@
+code,name,generic_name,category,unit,dosage_form,manufacturer,unit_cost,selling_price,reorder_level,batch_number,expiry_date,quantity,supplier
+MED-0101,Ciprofloxacin 500mg,Ciprofloxacin Hydrochloride,Antibiotic,Tablet,500mg,Bayer Healthcare,0.30,0.85,30,BAT-CIP-2026-X,2028-09-30,500,Global Med Logistics
+MED-0102,Lisinopril 10mg,Lisinopril Dihydrate,Antihypertensive,Tablet,10mg,AstraZeneca,0.18,0.55,40,BAT-LIS-2026-Y,2028-11-15,400,Apex Pharmaceuticals
+MED-0103,Azithromycin 250mg,Azithromycin Monohydrate,Antibiotic,Capsule,250mg,Pfizer Labs,0.65,1.50,25,BAT-AZI-2026-Z,2028-03-31,300,Prime Pharma Direct
+MED-0104,Hydrochlorothiazide 25mg,Hydrochlorothiazide,Diuretic,Tablet,25mg,Novartis Pharma,0.08,0.30,50,BAT-HCT-2026-A,2029-01-20,600,Standard Health Distributors
+MED-0105,Loratadine 10mg,Loratadine,Antihistamine,Tablet,10mg,Merck Consumer,0.10,0.40,35,BAT-LOR-2026-B,2028-07-31,450,HealthPoint Logistics

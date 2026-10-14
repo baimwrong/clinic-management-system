@@ -1,0 +1,282 @@
+/* Clinic Management System - Modern Clinical UI Theme */
+:root {
+    --clinic-primary: #0d9488;
+    --clinic-primary-hover: #0f766e;
+    --clinic-primary-light: #ccfbf1;
+    --clinic-dark: #0f172a;
+    --clinic-sidebar-bg: #1e293b;
+    --clinic-sidebar-hover: #334155;
+    --clinic-sidebar-active: #0d9488;
+    --clinic-bg: #f8fafc;
+    --clinic-card-border: #e2e8f0;
+    --clinic-text-muted: #64748b;
+}
+
+body {
+    background-color: var(--clinic-bg);
+    color: #1e293b;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+}
+
+/* Sidebar Styling */
+.clinic-sidebar {
+    width: 260px;
+    background-color: var(--clinic-sidebar-bg);
+    min-height: 100vh;
+    color: #cbd5e1;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.clinic-sidebar .brand {
+    padding: 1.25rem 1.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.clinic-sidebar .brand i {
+    color: #2dd4bf;
+    font-size: 1.5rem;
+}
+
+.clinic-sidebar .nav-section-title {
+    padding: 1rem 1.5rem 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+}
+
+.clinic-sidebar .nav-link {
+    color: #cbd5e1;
+    padding: 0.7rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    font-weight: 500;
+    font-size: 0.925rem;
+    transition: all 0.2s ease;
+    border-radius: 0;
+}
+
+.clinic-sidebar .nav-link i {
+    font-size: 1.15rem;
+    width: 20px;
+    text-align: center;
+}
+
+.clinic-sidebar .nav-link:hover {
+    color: #ffffff;
+    background-color: var(--clinic-sidebar-hover);
+}
+
+.clinic-sidebar .nav-link.active {
+    color: #ffffff;
+    background-color: var(--clinic-sidebar-active);
+    font-weight: 600;
+}
+
+/* Main Content Area */
+.clinic-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.clinic-navbar {
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--clinic-card-border);
+    padding: 0.85rem 1.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}
+
+.clinic-content {
+    padding: 1.75rem;
+    flex: 1;
+}
+
+/* Cards & Widgets */
+.card-clinic {
+    background: #ffffff;
+    border: 1px solid var(--clinic-card-border);
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s ease;
+}
+
+.card-clinic:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+.card-header-clinic {
+    background: #ffffff;
+    border-bottom: 1px solid var(--clinic-card-border);
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Metric / Stat Cards */
+.stat-card {
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    background: #ffffff;
+    border: 1px solid var(--clinic-card-border);
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.stat-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.stat-icon.primary { background: #ccfbf1; color: #0d9488; }
+.stat-icon.info { background: #e0f2fe; color: #0284c7; }
+.stat-icon.success { background: #dcfce7; color: #16a34a; }
+.stat-icon.warning { background: #fef3c7; color: #d97706; }
+.stat-icon.danger { background: #fee2e2; color: #dc2626; }
+.stat-icon.secondary { background: #f1f5f9; color: #475569; }
+
+.stat-label {
+    font-size: 0.825rem;
+    font-weight: 500;
+    color: var(--clinic-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.2rem;
+}
+
+.stat-value {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+/* Custom Buttons */
+.btn-clinic {
+    background-color: var(--clinic-primary);
+    border-color: var(--clinic-primary);
+    color: #ffffff;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.btn-clinic:hover, .btn-clinic:focus {
+    background-color: var(--clinic-primary-hover);
+    border-color: var(--clinic-primary-hover);
+    color: #ffffff;
+}
+
+.btn-clinic-outline {
+    background-color: transparent;
+    border-color: var(--clinic-primary);
+    color: var(--clinic-primary);
+    font-weight: 500;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+}
+
+.btn-clinic-outline:hover {
+    background-color: var(--clinic-primary);
+    color: #ffffff;
+}
+
+/* Tables */
+.table-clinic th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.825rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--clinic-card-border);
+    padding: 0.85rem 1rem;
+}
+
+.table-clinic td {
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--clinic-card-border);
+    font-size: 0.925rem;
+}
+
+.table-clinic tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Badges */
+.badge-pill {
+    padding: 0.35em 0.7em;
+    font-weight: 600;
+    border-radius: 2rem;
+    font-size: 0.785rem;
+}
+
+/* Vitals Display Card */
+.vital-display-item {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.85rem 1rem;
+    text-align: center;
+}
+
+.vital-display-item .vital-val {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.vital-display-item .vital-lbl {
+    font-size: 0.75rem;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+/* Printable Styles */
+@media print {
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    .clinic-sidebar, .clinic-navbar, .no-print, .btn, .pagination {
+        display: none !important;
+    }
+
+    .clinic-main {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .card-clinic {
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+    }
+}

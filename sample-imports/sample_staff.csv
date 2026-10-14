@@ -1,0 +1,6 @@
+name,email,role,phone,password,specialization,license_number,qualification,consultation_fee,room_number
+Dr. Gregory House,house@clinic.local,doctor,+1-555-0891,password123,Infectious Diseases,MD-INF-776611,"MD, Diagnostician",95.00,Room 301
+Dr. Allison Cameron,cameron@clinic.local,doctor,+1-555-0892,password123,Immunology,MD-IMM-884422,"MD, Immunology Specialist",80.00,Room 205
+Nurse Jackie Peyton,jackie@clinic.local,nurse,+1-555-0893,password123,,,RN Emergency Triage,0.00,Triage Desk B
+Howard Wolowitz,howard.w@clinic.local,pharmacist,+1-555-0894,password123,,,PharmD Clinical Pharmacist,0.00,Central Dispensing
+Penny Hofstadter,penny.h@clinic.local,receptionist,+1-555-0895,password123,,,Front Desk Officer,0.00,Main Reception
