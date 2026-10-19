@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Invoice ' . $invoice->invoice_number)
 
@@ -119,6 +119,53 @@
                             <strong>Invoice Notes:</strong> {{ $invoice->notes }}
                         </div>
                     @endif
+                </div>
+            </div>
+
+            <!-- Payment History Ledger -->
+            <div class="card card-clinic mb-4">
+                <div class="card-header-clinic d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-clock-history text-primary me-2"></i> Payment Transactions History</span>
+                    <span class="badge bg-light text-dark border">{{ $invoice->payments->count() }} {{ \Illuminate\Support\Str::plural('Transaction', $invoice->payments->count()) }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Receipt / Ref #</th>
+                                    <th>Date & Time</th>
+                                    <th>Method</th>
+                                    <th>Received By</th>
+                                    <th>Notes</th>
+                                    <th class="text-end">Amount Paid</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($invoice->payments as $payment)
+                                    <tr>
+                                        <td class="fw-bold font-monospace text-primary">{{ $payment->payment_reference }}</td>
+                                        <td>{{ $payment->paid_at ? $payment->paid_at->format('M d, Y h:i A') : $payment->created_at->format('M d, Y h:i A') }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary-subtle text-secondary border text-uppercase">
+                                                {{ str_replace('_', ' ', $payment->payment_method) }}
+                                            </span>
+                                        </td>
+                                        <td>{{ $payment->recordedByUser->name ?? 'System' }}</td>
+                                        <td class="small text-muted">{{ $payment->notes ?? '—' }}</td>
+                                        <td class="text-end fw-bold text-success">+${{ number_format($payment->amount, 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted">
+                                            <i class="bi bi-wallet2 fs-3 d-block mb-1"></i>
+                                            No payment transactions recorded for this invoice yet.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 

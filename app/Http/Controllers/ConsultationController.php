@@ -28,14 +28,17 @@ class ConsultationController extends Controller
 
         $consultations = Consultation::with(['patient', 'doctor.user', 'prescription'])
             ->when($search, function ($query, $search) {
-                $query->where('consultation_number', 'ILIKE', "%{$search}%")
-                    ->orWhere('primary_diagnosis', 'ILIKE', "%{$search}%")
-                    ->orWhere('icd10_code', 'ILIKE', "%{$search}%")
-                    ->orWhereHas('patient', function ($q) use ($search) {
-                        $q->where('first_name', 'ILIKE', "%{$search}%")
-                          ->orWhere('last_name', 'ILIKE', "%{$search}%")
-                          ->orWhere('patient_code', 'ILIKE', "%{$search}%");
-                    });
+                $term = '%'.strtolower($search).'%';
+                $query->where(function ($q) use ($term) {
+                    $q->whereRaw('LOWER(consultation_number) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(primary_diagnosis) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(COALESCE(icd10_code, \'\')) LIKE ?', [$term])
+                        ->orWhereHas('patient', function ($pq) use ($term) {
+                            $pq->whereRaw('LOWER(first_name) LIKE ?', [$term])
+                                ->orWhereRaw('LOWER(last_name) LIKE ?', [$term])
+                                ->orWhereRaw('LOWER(patient_code) LIKE ?', [$term]);
+                        });
+                });
             })
             ->when($user->isDoctor(), function ($query) use ($user) {
                 return $query->where('doctor_id', $user->doctor?->id);
@@ -58,7 +61,7 @@ class ConsultationController extends Controller
         $appointment = $appointmentId ? Appointment::with(['patient', 'doctor.user'])->find($appointmentId) : null;
         $patient = $appointment ? $appointment->patient : ($patientId ? Patient::find($patientId) : null);
 
-        if (!$patient) {
+        if (! $patient) {
             return redirect()->route('patients.index')->with('error', 'Please select a patient to initiate consultation.');
         }
 
@@ -67,16 +70,17 @@ class ConsultationController extends Controller
         $medicines = Medicine::where('is_active', true)->with('batches')->get();
         $recentVitals = VitalSign::where('patient_id', $patient->id)->latest('recorded_at')->first();
 
-        // Mark appointment in_consultation if coming from appointment
-        if ($appointment && $appointment->status === 'scheduled') {
-            $appointment->update(['status' => 'in_consultation']);
-        }
-
         return view('consultations.create', compact('appointment', 'patient', 'doctors', 'medicines', 'recentVitals'));
     }
 
     public function store(Request $request): RedirectResponse
     {
+        // Filter out empty medication rows if none selected
+        if ($request->has('medicines') && is_array($request->input('medicines'))) {
+            $cleaned = array_values(array_filter($request->input('medicines'), fn ($m) => ! empty($m['medicine_id'])));
+            $request->merge(['medicines' => $cleaned]);
+        }
+
         $validated = $request->validate([
             'patient_id' => 'required|exists:patients,id',
             'doctor_id' => 'required|exists:doctors,id',
@@ -104,25 +108,30 @@ class ConsultationController extends Controller
 
             // Prescriptions array
             'medicines' => 'nullable|array',
-            'medicines.*.medicine_id' => 'required_with:medicines|exists:medicines,id',
-            'medicines.*.dosage' => 'required_with:medicines|string',
-            'medicines.*.frequency' => 'required_with:medicines|string',
-            'medicines.*.duration_days' => 'required_with:medicines|integer|min:1',
-            'medicines.*.quantity' => 'required_with:medicines|integer|min:1',
+            'medicines.*.medicine_id' => 'required|exists:medicines,id',
+            'medicines.*.dosage' => 'required|string',
+            'medicines.*.frequency' => 'required|string',
+            'medicines.*.duration_days' => 'required|integer|min:1',
+            'medicines.*.quantity' => 'required|integer|min:1',
             'medicines.*.instructions' => 'nullable|string',
         ]);
 
-        $consultation = DB::transaction(function () use ($validated, $request) {
+        $currentUser = Auth::user();
+        if ($currentUser->isDoctor() && $currentUser->doctor) {
+            $validated['doctor_id'] = $currentUser->doctor->id;
+        }
+
+        $consultation = DB::transaction(function () use ($validated) {
             $validated['consultation_number'] = Consultation::generateConsultationNumber();
             $validated['status'] = 'completed';
 
             $consultation = Consultation::create($validated);
 
             // Record Vitals if supplied
-            if (!empty($validated['systolic_bp']) || !empty($validated['pulse_rate']) || !empty($validated['temperature']) || !empty($validated['weight_kg'])) {
+            if (! empty($validated['systolic_bp']) || ! empty($validated['pulse_rate']) || ! empty($validated['temperature']) || ! empty($validated['weight_kg'])) {
                 $bmi = VitalSign::calculateBmi(
-                    !empty($validated['weight_kg']) ? (float)$validated['weight_kg'] : null,
-                    !empty($validated['height_cm']) ? (float)$validated['height_cm'] : null
+                    ! empty($validated['weight_kg']) ? (float) $validated['weight_kg'] : null,
+                    ! empty($validated['height_cm']) ? (float) $validated['height_cm'] : null
                 );
 
                 VitalSign::create([
@@ -144,7 +153,7 @@ class ConsultationController extends Controller
 
             // Create Prescription and Prescription Items if medicines were prescribed
             $prescriptionItemsData = [];
-            if (!empty($validated['medicines'])) {
+            if (! empty($validated['medicines'])) {
                 $prescription = Prescription::create([
                     'prescription_number' => Prescription::generatePrescriptionNumber(),
                     'consultation_id' => $consultation->id,
@@ -154,7 +163,9 @@ class ConsultationController extends Controller
                 ]);
 
                 foreach ($validated['medicines'] as $med) {
-                    if (empty($med['medicine_id'])) continue;
+                    if (empty($med['medicine_id'])) {
+                        continue;
+                    }
 
                     $pItem = PrescriptionItem::create([
                         'prescription_id' => $prescription->id,
@@ -171,16 +182,16 @@ class ConsultationController extends Controller
                     $prescriptionItemsData[] = [
                         'item_type' => 'medicine',
                         'description' => "Medication: {$medicine->name} ({$med['dosage']}, {$med['quantity']} units)",
-                        'quantity' => (int)$med['quantity'],
-                        'unit_price' => (float)$medicine->selling_price,
-                        'total_price' => (float)($medicine->selling_price * $med['quantity']),
+                        'quantity' => (int) $med['quantity'],
+                        'unit_price' => (float) $medicine->selling_price,
+                        'total_price' => (float) ($medicine->selling_price * $med['quantity']),
                     ];
                 }
             }
 
             // Create Billing Invoice automatically
             $doctor = Doctor::find($validated['doctor_id']);
-            $consultationFee = (float)($doctor->consultation_fee ?? 50.00);
+            $consultationFee = (float) ($doctor->consultation_fee ?? 50.00);
 
             $invoice = Invoice::create([
                 'invoice_number' => Invoice::generateInvoiceNumber(),
@@ -216,7 +227,7 @@ class ConsultationController extends Controller
             $invoice->recalculateTotals();
 
             // Mark appointment as completed if linked
-            if (!empty($validated['appointment_id'])) {
+            if (! empty($validated['appointment_id'])) {
                 Appointment::where('id', $validated['appointment_id'])
                     ->update(['status' => 'completed']);
             }

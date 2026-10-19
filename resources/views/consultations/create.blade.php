@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Clinical Encounter - ' . $patient->full_name)
 
@@ -173,43 +173,8 @@
                     <div class="card-body p-3">
                         <div id="medicineRowsContainer">
                             <!-- Dynamic Medicine Rows will appear here -->
-                            <div class="medicine-row border rounded p-3 mb-3 bg-light position-relative">
-                                <button type="button" class="btn-close position-absolute top-0 end-0 m-2 remove-med-btn" aria-label="Close"></button>
-                                <div class="mb-2">
-                                    <label class="form-label small fw-semibold">Medication Catalog</label>
-                                    <select name="medicines[0][medicine_id]" class="form-select form-select-sm" required>
-                                        <option value="">Select prescribed medicine...</option>
-                                        @foreach($medicines as $med)
-                                            <option value="{{ $med->id }}" data-price="{{ $med->selling_price }}">
-                                                {{ $med->name }} ({{ $med->dosage_form ?? $med->unit }}) - Stock: {{ $med->total_stock }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
-                                        <label class="form-label small">Dosage</label>
-                                        <input type="text" name="medicines[0][dosage]" class="form-control form-control-sm" placeholder="e.g. 500mg" required value="500mg">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label small">Frequency</label>
-                                        <input type="text" name="medicines[0][frequency]" class="form-control form-control-sm" placeholder="e.g. 3 times daily" required value="3x daily">
-                                    </div>
-                                </div>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
-                                        <label class="form-label small">Duration (Days)</label>
-                                        <input type="number" name="medicines[0][duration_days]" class="form-control form-control-sm" placeholder="7" required value="7">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label small">Quantity (Units)</label>
-                                        <input type="number" name="medicines[0][quantity]" class="form-control form-control-sm" placeholder="21" required value="21">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="form-label small">Instructions for Patient</label>
-                                    <input type="text" name="medicines[0][instructions]" class="form-control form-control-sm" placeholder="e.g. Take after meals with plenty of water.">
-                                </div>
+                            <div id="noMedMessage" class="text-muted text-center py-4 small bg-light rounded border border-dashed mb-3">
+                                <i class="bi bi-capsule me-1 text-secondary"></i> No medications prescribed. Click <strong>Add Medication</strong> if prescribing drugs.
                             </div>
                         </div>
                         <div class="form-text small text-muted">
@@ -282,13 +247,17 @@
         }
 
         // Dynamic Medicine Rows
-        let rowIndex = 1;
+        let rowIndex = 0;
         const container = document.getElementById('medicineRowsContainer');
         const addBtn = document.getElementById('addMedicineBtn');
+        const noMedMessage = document.getElementById('noMedMessage');
 
         const medicineOptionsHtml = `@foreach($medicines as $med)<option value="{{ $med->id }}">{{ addslashes($med->name) }} ({{ $med->dosage_form ?? $med->unit }}) - Stock: {{ $med->total_stock }}</option>@endforeach`;
 
         addBtn.addEventListener('click', function () {
+            if (noMedMessage) {
+                noMedMessage.style.display = 'none';
+            }
             const rowDiv = document.createElement('div');
             rowDiv.className = 'medicine-row border rounded p-3 mb-3 bg-light position-relative';
             rowDiv.innerHTML = `
@@ -331,11 +300,10 @@
 
         container.addEventListener('click', function (e) {
             if (e.target.classList.contains('remove-med-btn')) {
-                const rows = container.querySelectorAll('.medicine-row');
-                if (rows.length > 1) {
-                    e.target.closest('.medicine-row').remove();
-                } else {
-                    alert('At least one medicine row should be kept or left unselected.');
+                e.target.closest('.medicine-row').remove();
+                const remainingRows = container.querySelectorAll('.medicine-row');
+                if (remainingRows.length === 0 && noMedMessage) {
+                    noMedMessage.style.display = 'block';
                 }
             }
         });

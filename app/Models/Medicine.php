@@ -47,6 +47,16 @@ class Medicine extends Model
 
     public function getTotalStockAttribute(): int
     {
+        if (isset($this->attributes['unexpired_stock'])) {
+            return (int) $this->attributes['unexpired_stock'];
+        }
+
+        if ($this->relationLoaded('batches')) {
+            return (int) $this->batches
+                ->filter(fn ($batch) => $batch->expiry_date > now())
+                ->sum('remaining_quantity');
+        }
+
         return (int) $this->batches()
             ->where('expiry_date', '>', now())
             ->sum('remaining_quantity');
@@ -61,6 +71,7 @@ class Medicine extends Model
     {
         $last = self::orderByDesc('id')->first();
         $number = $last ? ($last->id + 1) : 1;
+
         return sprintf('MED-%04d', $number);
     }
 }

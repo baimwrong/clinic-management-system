@@ -20,11 +20,14 @@ class DoctorController extends Controller
 
         $doctors = Doctor::with('user')
             ->when($search, function ($query, $search) {
-                $query->whereHas('user', function ($q) use ($search) {
-                    $q->where('name', 'ILIKE', "%{$search}%")
-                      ->orWhere('email', 'ILIKE', "%{$search}%");
-                })->orWhere('staff_id', 'ILIKE', "%{$search}%")
-                  ->orWhere('specialization', 'ILIKE', "%{$search}%");
+                $term = '%'.strtolower($search).'%';
+                $query->where(function ($sub) use ($term) {
+                    $sub->whereHas('user', function ($q) use ($term) {
+                        $q->whereRaw('LOWER(name) LIKE ?', [$term])
+                            ->orWhereRaw('LOWER(email) LIKE ?', [$term]);
+                    })->orWhereRaw('LOWER(staff_id) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(specialization) LIKE ?', [$term]);
+                });
             })
             ->when($specialization, function ($query, $spec) {
                 $query->where('specialization', $spec);
@@ -73,7 +76,7 @@ class DoctorController extends Controller
                 'status' => 'active',
             ]);
 
-            $staffId = 'DOC-' . sprintf('%04d', $user->id);
+            $staffId = 'DOC-'.sprintf('%04d', $user->id);
 
             Doctor::create([
                 'user_id' => $user->id,
@@ -100,8 +103,8 @@ class DoctorController extends Controller
     {
         $doctor->load([
             'user',
-            'appointments' => fn($q) => $q->with('patient')->latest('appointment_date')->take(10),
-            'consultations' => fn($q) => $q->with('patient')->latest('consultation_date')->take(10),
+            'appointments' => fn ($q) => $q->with('patient')->latest('appointment_date')->take(10),
+            'consultations' => fn ($q) => $q->with('patient')->latest('consultation_date')->take(10),
         ]);
 
         return view('doctors.show', compact('doctor'));
@@ -110,6 +113,7 @@ class DoctorController extends Controller
     public function edit(Doctor $doctor): View
     {
         $doctor->load('user');
+
         return view('doctors.edit', compact('doctor'));
     }
 

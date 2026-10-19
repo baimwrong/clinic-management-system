@@ -11,8 +11,7 @@ class RoleMiddleware
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @param  string  ...$roles
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
@@ -20,7 +19,7 @@ class RoleMiddleware
             return redirect()->route('login');
         }
 
-        if (! in_array($request->user()->role, $roles, true)) {
+        if (! $request->user()->isAdmin() && ! in_array($request->user()->role, $roles, true)) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Unauthorized action for your role.'], 403);
             }

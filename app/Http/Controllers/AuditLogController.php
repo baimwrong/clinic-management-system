@@ -14,11 +14,14 @@ class AuditLogController extends Controller
         $search = $request->input('search');
 
         $logs = AuditLog::with('user')
-            ->when($action, fn($q) => $q->where('action', 'LIKE', "{$action}%"))
+            ->when($action, fn ($q) => $q->where('action', 'LIKE', "{$action}%"))
             ->when($search, function ($query, $search) {
-                $query->where('description', 'ILIKE', "%{$search}%")
-                    ->orWhere('action', 'ILIKE', "%{$search}%")
-                    ->orWhereHas('user', fn($q) => $q->where('name', 'ILIKE', "%{$search}%"));
+                $term = '%'.strtolower($search).'%';
+                $query->where(function ($q) use ($term) {
+                    $q->whereRaw('LOWER(description) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(action) LIKE ?', [$term])
+                        ->orWhereHas('user', fn ($uq) => $uq->whereRaw('LOWER(name) LIKE ?', [$term]));
+                });
             })
             ->latest('id')
             ->paginate(25)

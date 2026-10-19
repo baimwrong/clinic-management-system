@@ -19,6 +19,7 @@ class LabController extends Controller
     public function index(): View
     {
         $tests = LabTest::orderBy('category')->orderBy('name')->get();
+
         return view('lab.tests.index', compact('tests'));
     }
 
@@ -50,7 +51,7 @@ class LabController extends Controller
         $status = $request->input('status');
 
         $orders = LabOrder::with(['patient', 'doctor.user', 'labTest'])
-            ->when($status, fn($q) => $q->where('status', $status))
+            ->when($status, fn ($q) => $q->where('status', $status))
             ->latest('order_date')
             ->paginate(15)
             ->withQueryString();
@@ -85,24 +86,39 @@ class LabController extends Controller
 
             $order = LabOrder::create($validated);
 
-            // Add test to patient's invoice or create an invoice
-            $labTest = LabTest::find($validated['lab_test_id']);
+            // Add test to patient's invoice or create a new invoice so revenue is not lost
+            $labTest = LabTest::findOrFail($validated['lab_test_id']);
             $latestUnpaidInvoice = Invoice::where('patient_id', $validated['patient_id'])
                 ->where('payment_status', 'unpaid')
                 ->latest('id')
                 ->first();
 
-            if ($latestUnpaidInvoice) {
-                InvoiceItem::create([
-                    'invoice_id' => $latestUnpaidInvoice->id,
-                    'item_type' => 'lab_test',
-                    'description' => "Laboratory Test: {$labTest->name} ({$labTest->code})",
-                    'quantity' => 1,
-                    'unit_price' => $labTest->price,
-                    'total_price' => $labTest->price,
+            if (! $latestUnpaidInvoice) {
+                $latestUnpaidInvoice = Invoice::create([
+                    'invoice_number' => Invoice::generateInvoiceNumber(),
+                    'patient_id' => $validated['patient_id'],
+                    'consultation_id' => $validated['consultation_id'] ?? null,
+                    'invoice_date' => now()->toDateString(),
+                    'payment_status' => 'unpaid',
+                    'subtotal' => 0.00,
+                    'tax_amount' => 0.00,
+                    'discount_amount' => 0.00,
+                    'total_amount' => 0.00,
+                    'paid_amount' => 0.00,
+                    'balance_due' => 0.00,
+                    'notes' => 'Auto-generated invoice for laboratory test order',
                 ]);
-                $latestUnpaidInvoice->recalculateTotals();
             }
+
+            InvoiceItem::create([
+                'invoice_id' => $latestUnpaidInvoice->id,
+                'item_type' => 'lab_test',
+                'description' => "Laboratory Test: {$labTest->name} ({$labTest->code})",
+                'quantity' => 1,
+                'unit_price' => $labTest->price,
+                'total_price' => $labTest->price,
+            ]);
+            $latestUnpaidInvoice->recalculateTotals();
 
             AuditLog::log('lab_order.create', "Ordered lab test {$labTest->name} for {$order->patient->full_name}");
 
@@ -115,7 +131,13 @@ class LabController extends Controller
 
     public function showOrder(LabOrder $labOrder): View
     {
+        $user = auth()->user();
+        if ($user && $user->isPatient() && $labOrder->patient_id !== $user->patient?->id) {
+            abort(403, 'Unauthorized access: You may only view your own laboratory orders.');
+        }
+
         $labOrder->load(['patient', 'doctor.user', 'labTest', 'consultation']);
+
         return view('lab.orders.show', compact('labOrder'));
     }
 

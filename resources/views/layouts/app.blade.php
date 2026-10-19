@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -22,50 +22,67 @@
                 </div>
             </div>
 
+            @php $authUser = auth()->user(); @endphp
             <nav class="flex-grow-1 overflow-y-auto py-2">
                 <div class="nav-section-title">Core Operations</div>
                 <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                     <i class="bi bi-speedometer2"></i>
                     <span>Dashboard</span>
                 </a>
+
+                @if($authUser->hasRole(['admin', 'doctor', 'nurse', 'receptionist']))
                 <a href="{{ route('patients.index') }}" class="nav-link {{ request()->routeIs('patients.*') ? 'active' : '' }}">
                     <i class="bi bi-people"></i>
                     <span>Patients Dossier</span>
                 </a>
+                @endif
+
                 <a href="{{ route('appointments.index') }}" class="nav-link {{ request()->routeIs('appointments.*') ? 'active' : '' }}">
                     <i class="bi bi-calendar2-check"></i>
                     <span>Appointments</span>
                 </a>
 
+                @if($authUser->hasRole(['admin', 'doctor', 'nurse', 'patient']))
                 <div class="nav-section-title">Clinical & Care</div>
                 <a href="{{ route('consultations.index') }}" class="nav-link {{ request()->routeIs('consultations.*') ? 'active' : '' }}">
                     <i class="bi bi-journal-medical"></i>
                     <span>Consultations (EMR)</span>
                 </a>
+                @endif
+
+                @if($authUser->hasRole(['admin', 'doctor', 'nurse']))
                 <a href="{{ route('vitals.index') }}" class="nav-link {{ request()->routeIs('vitals.*') ? 'active' : '' }}">
                     <i class="bi bi-activity"></i>
                     <span>Triage & Vitals</span>
                 </a>
+                @endif
+
                 <a href="{{ route('lab.orders.index') }}" class="nav-link {{ request()->routeIs('lab.*') ? 'active' : '' }}">
                     <i class="bi bi-eyedropper"></i>
                     <span>Lab & Diagnostics</span>
                 </a>
 
                 <div class="nav-section-title">Pharmacy & Billing</div>
+                @if($authUser->hasRole(['admin', 'pharmacist']))
                 <a href="{{ route('pharmacy.medicines.index') }}" class="nav-link {{ request()->routeIs('pharmacy.medicines.*') ? 'active' : '' }}">
                     <i class="bi bi-capsule-pill"></i>
                     <span>Medicines Inventory</span>
                 </a>
+                @endif
+
+                @if($authUser->hasRole(['admin', 'pharmacist', 'doctor']))
                 <a href="{{ route('pharmacy.prescriptions.index') }}" class="nav-link {{ request()->routeIs('pharmacy.prescriptions.*') ? 'active' : '' }}">
                     <i class="bi bi-prescription2"></i>
                     <span>Dispensing Queue</span>
                 </a>
+                @endif
+
                 <a href="{{ route('billing.index') }}" class="nav-link {{ request()->routeIs('billing.*') ? 'active' : '' }}">
                     <i class="bi bi-receipt"></i>
                     <span>Billing & Invoices</span>
                 </a>
 
-                @if(auth()->user()->isAdmin())
+                @if($authUser->isAdmin())
                 <div class="nav-section-title">Administration</div>
                 <a href="{{ route('admin.bulk-import.index') }}" class="nav-link text-warning {{ request()->routeIs('admin.bulk-import.*') ? 'active text-white' : '' }}">
                     <i class="bi bi-cloud-arrow-up"></i>
@@ -79,6 +96,12 @@
                 <a href="{{ route('admin.audit-logs.index') }}" class="nav-link {{ request()->routeIs('admin.audit-logs.*') ? 'active' : '' }}">
                     <i class="bi bi-shield-check"></i>
                     <span>Audit Logs</span>
+                </a>
+                @elseif($authUser->hasRole(['doctor', 'receptionist']))
+                <div class="nav-section-title">Staff Directory</div>
+                <a href="{{ route('doctors.index') }}" class="nav-link {{ request()->routeIs('doctors.*') ? 'active' : '' }}">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Medical Staff</span>
                 </a>
                 @endif
             </nav>

@@ -57,6 +57,11 @@ class Invoice extends Model
         return $this->hasMany(InvoiceItem::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class)->latest('paid_at');
+    }
+
     public function getPaymentStatusBadgeClassAttribute(): string
     {
         return match ($this->payment_status) {
@@ -70,11 +75,16 @@ class Invoice extends Model
 
     public function recalculateTotals(): void
     {
-        $this->subtotal = $this->items()->sum('total_price');
-        $this->total_amount = max(0, $this->subtotal + $this->tax_amount - $this->discount_amount);
-        $this->balance_due = max(0, $this->total_amount - $this->paid_amount);
+        $paymentsSum = (float) $this->payments()->sum('amount');
+        if ($paymentsSum > 0 || $this->payments()->exists()) {
+            $this->paid_amount = $paymentsSum;
+        }
 
-        if ($this->balance_due <= 0 && $this->total_amount > 0) {
+        $this->subtotal = (float) $this->items()->sum('total_price');
+        $this->total_amount = max(0, $this->subtotal + (float) $this->tax_amount - (float) $this->discount_amount);
+        $this->balance_due = max(0, $this->total_amount - (float) $this->paid_amount);
+
+        if ($this->balance_due <= 0) {
             $this->payment_status = 'paid';
         } elseif ($this->paid_amount > 0 && $this->balance_due > 0) {
             $this->payment_status = 'partially_paid';

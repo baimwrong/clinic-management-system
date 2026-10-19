@@ -16,12 +16,13 @@ class PatientController extends Controller
 
         $patients = Patient::query()
             ->when($search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('first_name', 'ILIKE', "%{$search}%")
-                      ->orWhere('last_name', 'ILIKE', "%{$search}%")
-                      ->orWhere('patient_code', 'ILIKE', "%{$search}%")
-                      ->orWhere('phone', 'ILIKE', "%{$search}%")
-                      ->orWhere('national_id', 'ILIKE', "%{$search}%");
+                $term = '%'.strtolower($search).'%';
+                $query->where(function ($q) use ($term) {
+                    $q->whereRaw('LOWER(first_name) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(last_name) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(patient_code) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(phone) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(national_id) LIKE ?', [$term]);
                 });
             })
             ->latest('id')
@@ -34,6 +35,7 @@ class PatientController extends Controller
     public function create(): View
     {
         $suggestedCode = Patient::generatePatientCode();
+
         return view('patients.create', compact('suggestedCode'));
     }
 
@@ -72,12 +74,12 @@ class PatientController extends Controller
     public function show(Patient $patient): View
     {
         $patient->load([
-            'vitalSigns' => fn($q) => $q->latest('recorded_at')->take(10),
-            'appointments' => fn($q) => $q->with('doctor.user')->latest('appointment_date'),
-            'consultations' => fn($q) => $q->with(['doctor.user', 'prescription.items.medicine', 'vitalSigns'])->latest('consultation_date'),
-            'prescriptions' => fn($q) => $q->with(['doctor.user', 'items.medicine'])->latest('id'),
-            'labOrders' => fn($q) => $q->with(['doctor.user', 'labTest'])->latest('order_date'),
-            'invoices' => fn($q) => $q->with('items')->latest('invoice_date'),
+            'vitalSigns' => fn ($q) => $q->latest('recorded_at')->take(10),
+            'appointments' => fn ($q) => $q->with('doctor.user')->latest('appointment_date'),
+            'consultations' => fn ($q) => $q->with(['doctor.user', 'prescription.items.medicine', 'vitalSigns'])->latest('consultation_date'),
+            'prescriptions' => fn ($q) => $q->with(['doctor.user', 'items.medicine'])->latest('id'),
+            'labOrders' => fn ($q) => $q->with(['doctor.user', 'labTest'])->latest('order_date'),
+            'invoices' => fn ($q) => $q->with('items')->latest('invoice_date'),
         ]);
 
         return view('patients.show', compact('patient'));

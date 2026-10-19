@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -132,6 +132,34 @@
                 </tr>
             </tfoot>
         </table>
+
+        @if($invoice->payments->isNotEmpty())
+        <div class="mb-4">
+            <h6 class="fw-bold text-uppercase small text-muted mb-2">Payment Transaction History</h6>
+            <table class="table table-sm table-bordered">
+                <thead class="table-light small">
+                    <tr>
+                        <th>Receipt Ref #</th>
+                        <th>Date</th>
+                        <th>Method</th>
+                        <th>Processed By</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="small">
+                    @foreach($invoice->payments as $payment)
+                        <tr>
+                            <td class="font-monospace fw-bold">{{ $payment->payment_reference }}</td>
+                            <td>{{ $payment->paid_at ? $payment->paid_at->format('M d, Y') : $payment->created_at->format('M d, Y') }}</td>
+                            <td class="text-uppercase">{{ $payment->payment_method }}</td>
+                            <td>{{ $payment->recordedByUser->name ?? 'Staff' }}</td>
+                            <td class="text-end fw-bold text-success">${{ number_format($payment->amount, 2) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
 
         <!-- Signature & Footer -->
         <div class="row pt-4 mt-5 border-top">

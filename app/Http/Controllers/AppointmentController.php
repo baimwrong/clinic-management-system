@@ -22,9 +22,9 @@ class AppointmentController extends Controller
         $doctorId = $request->input('doctor_id');
 
         $appointments = Appointment::with(['patient', 'doctor.user'])
-            ->when($date, fn($q) => $q->whereDate('appointment_date', $date))
-            ->when($status, fn($q) => $q->where('status', $status))
-            ->when($doctorId, fn($q) => $q->where('doctor_id', $doctorId))
+            ->when($date, fn ($q) => $q->whereDate('appointment_date', $date))
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($doctorId, fn ($q) => $q->where('doctor_id', $doctorId))
             ->when($user->isDoctor(), function ($query) use ($user) {
                 return $query->where('doctor_id', $user->doctor?->id);
             })
@@ -56,13 +56,51 @@ class AppointmentController extends Controller
         $validated = $request->validate([
             'patient_id' => 'required|exists:patients,id',
             'doctor_id' => 'required|exists:doctors,id',
-            'appointment_date' => 'required|date',
+            'appointment_date' => 'required|date|after_or_equal:today',
             'appointment_time' => 'required',
             'type' => 'required|in:routine,consultation,follow_up,emergency',
             'priority' => 'required|in:normal,urgent,emergency',
             'reason' => 'nullable|string',
             'notes' => 'nullable|string',
         ]);
+
+        $currentUser = Auth::user();
+        if ($currentUser->isPatient() && $currentUser->patient) {
+            $validated['patient_id'] = $currentUser->patient->id;
+        }
+
+        $doctor = Doctor::with('user')->where('id', $validated['doctor_id'])->where('status', 'active')->first();
+        if (! $doctor) {
+            return back()->withErrors(['doctor_id' => 'The selected doctor is currently inactive.'])->withInput();
+        }
+
+        // Validate doctor's schedule day
+        $dateObj = Carbon::parse($validated['appointment_date']);
+        $dayName = $dateObj->format('l');
+        if (! empty($doctor->available_days) && is_array($doctor->available_days) && ! in_array($dayName, $doctor->available_days, true)) {
+            return back()->withErrors([
+                'appointment_date' => "Dr. {$doctor->user->name} is not on duty on {$dayName}s. Available days: ".implode(', ', $doctor->available_days),
+            ])->withInput();
+        }
+
+        $normalizedTime = Carbon::parse($validated['appointment_time'])->format('H:i:00');
+        $validated['appointment_time'] = $normalizedTime;
+
+        // Check for double booking
+        $slotConflict = Appointment::where('doctor_id', $validated['doctor_id'])
+            ->whereDate('appointment_date', $validated['appointment_date'])
+            ->where(function ($q) use ($normalizedTime) {
+                $q->where('appointment_time', $normalizedTime)
+                    ->orWhere('appointment_time', substr($normalizedTime, 0, 5));
+            })
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->exists();
+
+        if ($slotConflict) {
+            return back()->withErrors([
+                'appointment_time' => "Dr. {$doctor->user->name} already has an appointment booked at ".substr($normalizedTime, 0, 5)." on {$validated['appointment_date']}. Please pick a different slot.",
+            ])->withInput();
+        }
 
         $validated['appointment_number'] = Appointment::generateAppointmentNumber();
         $validated['status'] = 'scheduled';
@@ -77,7 +115,13 @@ class AppointmentController extends Controller
 
     public function show(Appointment $appointment): View
     {
+        $currentUser = Auth::user();
+        if ($currentUser->isPatient() && $appointment->patient_id !== $currentUser->patient?->id) {
+            abort(403, 'Unauthorized access: You may only view your own appointments.');
+        }
+
         $appointment->load(['patient', 'doctor.user', 'consultation']);
+
         return view('appointments.show', compact('appointment'));
     }
 
@@ -102,6 +146,26 @@ class AppointmentController extends Controller
             'cancellation_reason' => 'nullable|string',
         ]);
 
+        $normalizedTime = Carbon::parse($validated['appointment_time'])->format('H:i:00');
+        $validated['appointment_time'] = $normalizedTime;
+
+        // Check for conflict on update if date or time changed
+        $slotConflict = Appointment::where('doctor_id', $appointment->doctor_id)
+            ->where('id', '!=', $appointment->id)
+            ->whereDate('appointment_date', $validated['appointment_date'])
+            ->where(function ($q) use ($normalizedTime) {
+                $q->where('appointment_time', $normalizedTime)
+                    ->orWhere('appointment_time', substr($normalizedTime, 0, 5));
+            })
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->exists();
+
+        if ($slotConflict) {
+            return back()->withErrors([
+                'appointment_time' => "Dr. {$appointment->doctor->user->name} already has an appointment booked at ".substr($normalizedTime, 0, 5)." on {$validated['appointment_date']}.",
+            ])->withInput();
+        }
+
         $appointment->update($validated);
 
         AuditLog::log('appointment.update', "Updated appointment {$appointment->appointment_number}");
@@ -121,7 +185,7 @@ class AppointmentController extends Controller
 
         AuditLog::log('appointment.status_change', "Changed status of {$appointment->appointment_number} to {$validated['status']}");
 
-        return back()->with('success', "Status updated to " . ucfirst(str_replace('_', ' ', $validated['status'])));
+        return back()->with('success', 'Status updated to '.ucfirst(str_replace('_', ' ', $validated['status'])));
     }
 
     public function destroy(Appointment $appointment): RedirectResponse

@@ -36,6 +36,7 @@ class AuthController extends Controller
             $user = Auth::user();
             if ($user->status !== 'active') {
                 Auth::logout();
+
                 return back()->withErrors(['email' => 'Your account has been deactivated. Please contact administration.']);
             }
 
@@ -67,6 +68,7 @@ class AuthController extends Controller
     public function profile(): View
     {
         $user = Auth::user()->load(['doctor', 'patient']);
+
         return view('auth.profile', compact('user'));
     }
 
@@ -84,16 +86,17 @@ class AuthController extends Controller
 
         // If user is a doctor, update doctor profile details if provided
         if ($user->isDoctor() && $user->doctor) {
-            $user->doctor->update($request->only([
-                'specialization',
-                'license_number',
-                'qualification',
-                'room_number',
-                'bio',
-            ]));
+            $doctorData = $request->validate([
+                'specialization' => 'nullable|string|max:100',
+                'license_number' => "nullable|string|max:100|unique:doctors,license_number,{$user->doctor->id}",
+                'qualification' => 'nullable|string|max:150',
+                'room_number' => 'nullable|string|max:50',
+                'bio' => 'nullable|string',
+            ]);
+            $user->doctor->update(array_filter($doctorData, fn ($v) => ! is_null($v)));
         }
 
-        AuditLog::log('profile.update', "User updated profile information.");
+        AuditLog::log('profile.update', 'User updated profile information.');
 
         return back()->with('success', 'Profile information updated successfully.');
     }
@@ -110,7 +113,7 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        AuditLog::log('password.update', "User changed their password.");
+        AuditLog::log('password.update', 'User changed their password.');
 
         return back()->with('success', 'Password updated successfully.');
     }

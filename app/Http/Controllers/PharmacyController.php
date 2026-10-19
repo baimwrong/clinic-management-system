@@ -6,7 +6,6 @@ use App\Models\AuditLog;
 use App\Models\Medicine;
 use App\Models\MedicineBatch;
 use App\Models\Prescription;
-use App\Models\PrescriptionItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,11 +22,14 @@ class PharmacyController extends Controller
 
         $medicines = Medicine::with('batches')
             ->when($search, function ($query, $search) {
-                $query->where('name', 'ILIKE', "%{$search}%")
-                      ->orWhere('generic_name', 'ILIKE', "%{$search}%")
-                      ->orWhere('code', 'ILIKE', "%{$search}%");
+                $term = '%'.strtolower($search).'%';
+                $query->where(function ($q) use ($term) {
+                    $q->whereRaw('LOWER(name) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(generic_name) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(code) LIKE ?', [$term]);
+                });
             })
-            ->when($category, fn($q) => $q->where('category', $category))
+            ->when($category, fn ($q) => $q->where('category', $category))
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();
@@ -40,6 +42,7 @@ class PharmacyController extends Controller
     public function create(): View
     {
         $suggestedCode = Medicine::generateMedicineCode();
+
         return view('pharmacy.medicines.create', compact('suggestedCode'));
     }
 
@@ -71,7 +74,8 @@ class PharmacyController extends Controller
 
     public function show(Medicine $medicine): View
     {
-        $medicine->load(['batches' => fn($q) => $q->orderBy('expiry_date')]);
+        $medicine->load(['batches' => fn ($q) => $q->orderBy('expiry_date')]);
+
         return view('pharmacy.medicines.show', compact('medicine'));
     }
 
@@ -133,7 +137,7 @@ class PharmacyController extends Controller
 
         AuditLog::log('medicine_batch.add', "Added stock batch {$validated['batch_number']} ({$validated['quantity']} units) for {$medicine->name}");
 
-        return back()->with('success', "Stock batch added successfully.");
+        return back()->with('success', 'Stock batch added successfully.');
     }
 
     // Prescriptions queue & dispensing
@@ -142,7 +146,7 @@ class PharmacyController extends Controller
         $status = $request->input('status', 'pending');
 
         $prescriptions = Prescription::with(['patient', 'doctor.user', 'items.medicine.batches'])
-            ->when($status !== 'all', fn($q) => $q->where('status', $status))
+            ->when($status !== 'all', fn ($q) => $q->where('status', $status))
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
@@ -152,7 +156,13 @@ class PharmacyController extends Controller
 
     public function showPrescription(Prescription $prescription): View
     {
+        $user = auth()->user();
+        if ($user && $user->isPatient() && $prescription->patient_id !== $user->patient?->id) {
+            abort(403, 'Unauthorized access: You may only view your own prescriptions.');
+        }
+
         $prescription->load(['patient', 'doctor.user', 'items.medicine.batches', 'consultation']);
+
         return view('pharmacy.prescriptions.show', compact('prescription'));
     }
 
@@ -179,12 +189,15 @@ class PharmacyController extends Controller
                 $totalAvailable = $batches->sum('remaining_quantity');
                 if ($totalAvailable < $needed) {
                     DB::rollBack();
+
                     return back()->with('error', "Insufficient stock for {$medicine->name}. Required: {$needed}, Available in active batches: {$totalAvailable}. Please restock before dispensing.");
                 }
 
                 $stillNeeded = $needed;
                 foreach ($batches as $batch) {
-                    if ($stillNeeded <= 0) break;
+                    if ($stillNeeded <= 0) {
+                        break;
+                    }
 
                     if ($batch->remaining_quantity >= $stillNeeded) {
                         $batch->remaining_quantity -= $stillNeeded;
@@ -210,7 +223,8 @@ class PharmacyController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'Dispensing failed: ' . $e->getMessage());
+
+            return back()->with('error', 'Dispensing failed: '.$e->getMessage());
         }
 
         AuditLog::log('prescription.dispense', "Dispensed prescription {$prescription->prescription_number} for {$prescription->patient->full_name}");
